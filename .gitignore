@@ -7,13 +7,11 @@ venv/
 
 
 # Next.js / Node
-node_modules/
-.next/
-out/
-build/
-.pnp
-.pnp.js
-
+# Next.js / Node
+**/node_modules/
+**/.next/
+**/out/
+**/build/
 # Docker
 .docker_temp/
 
