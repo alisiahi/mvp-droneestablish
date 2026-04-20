@@ -3,3 +3,6 @@ uvicorn
 sqlalchemy
 pandas
 psycopg2-binary
+python-multipart    
+boto3              
+python-jose[cryptography]

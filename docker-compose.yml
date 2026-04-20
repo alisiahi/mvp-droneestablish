@@ -1,4 +1,5 @@
 services:
+  # 1. DATABASE (Shared by Backend and Keycloak)
   db:
     image: postgres:15
     container_name: kiwi_bvl_db
@@ -7,11 +8,45 @@ services:
       POSTGRES_USER: kiwi_user
       POSTGRES_PASSWORD: kiwi_password
       POSTGRES_DB: bvl_data
+    volumes:
+      - ./data/postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
 
+  # 2. IAM (Keycloak)
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0 # Latest stable in 2026
+    container_name: kiwi_keycloak
+    command: start-dev
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://db:5432/bvl_data
+      KC_DB_USERNAME: kiwi_user
+      KC_DB_PASSWORD: kiwi_password
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin_password
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    volumes:
+      - ./data/keycloak_data:/opt/keycloak/data
+
+  # 3. STORAGE (MinIO)
+  minio:
+    image: quay.io/minio/minio
+    container_name: kiwi_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio_admin
+      MINIO_ROOT_PASSWORD: minio_password
+    ports:
+      - "9000:9000" # API
+      - "9001:9001" # Web Console
+    volumes:
+      - ./data/minio_data:/data
+
+  # 4. BACKEND (Python)
   backend:
     build: ./backend
     container_name: kiwi_backend
@@ -20,15 +55,20 @@ services:
       - "8000:8000"
     depends_on:
       - db
+      - minio
     environment:
       - DATABASE_URL=postgresql://kiwi_user:kiwi_password@db:5432/bvl_data
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minio_admin
+      - MINIO_SECRET_KEY=minio_password
+      - KEYCLOAK_URL=http://keycloak:8080
 
+  # 5. FRONTEND (Next.js)
   frontend:
     build: ./frontend
     container_name: kiwi_frontend
     restart: always
     ports:
       - "3000:3000"
-
-volumes:
-  postgres_data:
+    depends_on:
+      - backend
