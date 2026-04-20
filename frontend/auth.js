@@ -16,26 +16,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, account, profile }) {
-      // This runs on the server. Check your terminal logs!
+    async jwt({ token, profile, account }) {
+      if (profile) {
+        // Keycloak 'sub' is the unique benutzerID [cite: 10]
+        token.sub = profile.sub;
+        // This matches the "Token Claim Name" we set in Keycloak Step 1
+        token.roles = profile.roles || [];
+        token.betrieb_id = profile.betrieb_id;
+        token.name = profile.name;
+        token.email = profile.email;
+      }
       if (account) {
         token.id_token = account.id_token;
-      }
-
-      if (profile) {
-        // Log this to your terminal to see exactly where Keycloak puts roles
-        console.log(
-          "Keycloak Profile received:",
-          JSON.stringify(profile.realm_access, null, 2),
-        );
-
-        token.roles = profile.realm_access?.roles || [];
       }
       return token;
     },
     async session({ session, token }) {
-      // Transfer everything to the session
-      session.user.roles = token.roles || [];
+      if (session.user) {
+        session.user.id = token.sub; // Map Keycloak sub to user id [cite: 10]
+        session.user.roles = token.roles || [];
+        session.user.betrieb_id = token.betrieb_id;
+      }
       session.id_token = token.id_token;
       return session;
     },

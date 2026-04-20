@@ -30,15 +30,16 @@ export default function Header() {
         {session ? (
           <>
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-semibold">{session.user.name}</p>
+              <p className="text-sm font-semibold">{session?.user?.name}</p>
               <p className="text-xs text-slate-500">
-                {session.user.roles?.includes("winzer")
+                {session?.user?.roles?.includes("winzer")
                   ? "Winzer"
                   : "Mitarbeiter"}
               </p>
+              <pre>{JSON.stringify(session?.user?.roles, null, 2)}</pre>
             </div>
             <img
-              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${session.user.email}`}
+              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${session?.user?.email}`}
               alt="Avatar"
               className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200"
             />
@@ -48,6 +49,16 @@ export default function Header() {
             >
               Abmelden
             </button>
+            <pre>
+              {JSON.stringify(
+                {
+                  roles: session?.user?.roles,
+                  betrieb_id: session?.user?.betrieb_id, // This should now show 101
+                },
+                null,
+                2,
+              )}
+            </pre>
           </>
         ) : (
           <button

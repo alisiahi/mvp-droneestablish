@@ -1,14 +1,16 @@
 "use client";
 import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
 import dynamic from "next/dynamic";
 import Header from "../components/Header";
 import ApplicationForm from "../components/ApplicationForm";
+import SupportingDocuments from "@/components/SupportingDocuments";
 
+// Dynamically import Map to prevent SSR errors with Leaflet
 const Map = dynamic(() => import("../components/Map"), {
   ssr: false,
   loading: () => (
-    <div className="h-[600px] flex items-center justify-center">
+    <div className="h-[600px] flex items-center justify-center bg-slate-100 rounded-3xl">
       Lade Karte...
     </div>
   ),
@@ -18,6 +20,36 @@ export default function Home() {
   const { data: session, status } = useSession();
   const [view, setView] = useState("map");
   const [savedParcels, setSavedParcels] = useState([]);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+
+  // --- SUBMIT FINAL APPLICATION ---
+  const handleFinalSubmit = async (formData) => {
+    // Using Optional Chaining (?.) to prevent crashes if session is slow to load
+    const payload = {
+      user_id: session?.user?.id, // Keycloak 'sub'
+      betrieb_id: session?.user?.betrieb_id, // Keycloak Group Attribute
+      selected_parcels: savedParcels, // Map data
+      form_data: formData, // Form data
+      supporting_documents: uploadedFiles, // MinIO paths
+      type: "main",
+    };
+
+    try {
+      const res = await fetch("http://localhost:8000/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        alert("Antrag erfolgreich eingereicht!");
+        window.location.reload(); // Refresh to start fresh
+      }
+    } catch (err) {
+      console.error("Submission failed:", err);
+      alert("Fehler beim Senden. Bitte versuchen Sie es erneut.");
+    }
+  };
 
   const handleFinishSelection = () => {
     if (savedParcels.length > 0) {
@@ -27,11 +59,11 @@ export default function Home() {
     }
   };
 
-  // While checking if user is logged in
+  // 1. Handle Loading State
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        Initialisierung...
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500 font-medium">
+        KIWI Portal wird initialisiert...
       </div>
     );
   }
@@ -67,6 +99,7 @@ export default function Home() {
           <>
             {view === "map" ? (
               <div className="space-y-6">
+                {/* Parcel Selection View */}
                 <Map
                   savedParcels={savedParcels}
                   setSavedParcels={setSavedParcels}
@@ -81,7 +114,17 @@ export default function Home() {
                 >
                   ← Zurück zur Karte (Flurstücke bearbeiten)
                 </button>
-                <ApplicationForm selectedParcels={savedParcels} />
+
+                {/* Application Form */}
+                <ApplicationForm onSubmit={handleFinalSubmit} />
+
+                {/* File Upload Section */}
+                <SupportingDocuments
+                  betrieb_id={session?.user?.betrieb_id}
+                  onUploadSuccess={(path) =>
+                    setUploadedFiles((prev) => [...prev, path])
+                  }
+                />
               </div>
             )}
           </>

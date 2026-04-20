@@ -5,12 +5,12 @@ import { Accordion } from "@/components/ui/accordion";
 import GeneralInfo from "./GeneralInfo";
 import SpritzungItem from "./SpritzungItem";
 
-export default function ApplicationForm() {
+export default function ApplicationForm({ onSubmit }) {
   const [formData, setFormData] = useState({
     general: { spritzgemeinschaft: "", ansprechpartner: "", tel: "" },
     spritzungen: Array.from({ length: 9 }, (_, i) => ({
       id: i + 1,
-      es: "16-61", // Default ES-Stadium from PDF [cite: 4]
+      es: "16-61", // Default from PDF [cite: 60]
       date: "",
       verantwortlicher: "",
       anmerkungen: "",
@@ -18,9 +18,8 @@ export default function ApplicationForm() {
     })),
   });
 
-  const updateGeneral = (newData) => {
+  const updateGeneral = (newData) =>
     setFormData((prev) => ({ ...prev, general: newData }));
-  };
 
   const updateSpritzung = (index, updatedData) => {
     const newSpritzungen = [...formData.spritzungen];
@@ -39,7 +38,6 @@ export default function ApplicationForm() {
         </CardContent>
       </Card>
 
-      {/* type="single" ensures only one accordion is open at a time */}
       <Accordion type="single" collapsible className="space-y-3">
         {formData.spritzungen.map((s, index) => (
           <SpritzungItem
@@ -54,11 +52,14 @@ export default function ApplicationForm() {
       <div className="flex gap-4 justify-end pt-4">
         <Button
           variant="outline"
-          onClick={() => console.log("Draft Saved", formData)}
+          onClick={() => console.log("Draft", formData)}
         >
           Entwurf speichern
         </Button>
-        <Button className="bg-blue-700 hover:bg-blue-800">
+        <Button
+          className="bg-blue-700 hover:bg-blue-800"
+          onClick={() => onSubmit(formData)} // Trigger final submission
+        >
           Antrag abschließen
         </Button>
       </div>
