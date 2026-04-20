@@ -1,3 +1,4 @@
+import time
 import pandas as pd
 from sqlalchemy import create_engine
 import os
@@ -38,8 +39,23 @@ def clean_and_upload():
         print(f"Done! Loaded {len(df)} rows into {table_name}.\n")
 
 if __name__ == "__main__":
+    # Wait for the database to be ready
+    max_retries = 5
+    for i in range(max_retries):
+        try:
+            # Try to connect to the database
+            with engine.connect() as connection:
+                print("Database connection successful!")
+                break
+        except Exception:
+            print(f"Database not ready yet (Attempt {i+1}/{max_retries}). Waiting...")
+            time.sleep(3) # Wait 3 seconds before trying again
+    else:
+        print("Could not connect to the database after several attempts. Exiting.")
+        exit(1)
+
     try:
         clean_and_upload()
         print("All data has been successfully loaded into PostgreSQL!")
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"An error occurred during upload: {e}")
