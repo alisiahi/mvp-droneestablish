@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:15
+    container_name: kiwi_bvl_db
+    restart: always
+    environment:
+      POSTGRES_USER: kiwi_user
+      POSTGRES_PASSWORD: kiwi_password
+      POSTGRES_DB: bvl_data
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    container_name: kiwi_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgresql://kiwi_user:kiwi_password@db:5432/bvl_data
+
+  frontend:
+    build: ./frontend
+    container_name: kiwi_frontend
+    restart: always
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
