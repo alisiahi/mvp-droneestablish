@@ -17,7 +17,7 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:24.0 # Latest stable in 2026
     container_name: kiwi_keycloak
-    command: start-dev
+    command: start-dev --import-realm
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://db:5432/bvl_data
@@ -30,6 +30,7 @@ services:
     depends_on:
       - db
     volumes:
+      - ./keycloak/kiwi-realm-export.json:/opt/keycloak/data/import/realm.json
       - ./data/keycloak_data:/opt/keycloak/data
 
   # 3. STORAGE (MinIO)

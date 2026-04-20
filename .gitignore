@@ -20,4 +20,4 @@ venv/
 Thumbs.db
 
 data/
-.env
+.env*
