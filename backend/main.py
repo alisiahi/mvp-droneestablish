@@ -12,10 +12,11 @@ app = FastAPI(title="KIWI Drone API")
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-s3 = boto3.client("s3", 
+s3 = boto3.client(
+    "s3",
     endpoint_url=f"http://{os.getenv('MINIO_ENDPOINT', 'minio:9000')}",
-    aws_access_key_id=os.getenv("MINIO_ROOT_USER", "minio_admin"),
-    aws_secret_access_key=os.getenv("MINIO_ROOT_PASSWORD", "minio_password")
+    aws_access_key_id=os.getenv("MINIO_ACCESS_KEY", "admin"), 
+    aws_secret_access_key=os.getenv("MINIO_SECRET_KEY", "adminpassword") 
 )
 BUCKET_NAME = "kiwi-documents"
 

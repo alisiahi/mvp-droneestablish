@@ -3,13 +3,15 @@ import pandas as pd
 from sqlalchemy import create_engine
 import os
 
-# 1. Connect to the database we just started in Docker
-# The address is: user:password@localhost:port/database_name
-DB_URL = os.getenv('DATABASE_URL', 'postgresql://kiwi_user:kiwi_password@localhost:5432/bvl_data')
+# 1. Connect to the database
+DB_URL = os.getenv('DATABASE_URL', 'postgresql://kiwi_user:kiwi_password@kiwi_bvl_db:5432/bvl_data')
 engine = create_engine(DB_URL)
 
 def clean_and_upload():
-    # List of your files and the table names we want in the DB
+    # Folder where CSV files are now located
+    data_folder = "raw_csv_data"
+    
+    # List of your files and the table names
     files_to_load = {
         "kode": "kode.csv",
         "mittel": "mittel.csv",
@@ -19,39 +21,37 @@ def clean_and_upload():
     }
 
     for table_name, file_name in files_to_load.items():
-        if not os.path.exists(file_name):
-            print(f"Skipping {file_name}: File not found!")
+        # Construct the full path: raw_csv_data/filename.csv
+        file_path = os.path.join(data_folder, file_name)
+        
+        if not os.path.exists(file_path):
+            print(f"Skipping {file_name}: File not found at {file_path}!")
             continue
 
-        print(f"Reading {file_name}...")
+        print(f"Reading {file_path}...")
         
-        # Read the CSV. BVL files often use ';' as a separator.
-        # 'sep=None' tells pandas to guess if it's a comma or semicolon.
-        df = pd.read_csv(file_name, sep=None, engine='python', encoding='utf-8')
+        # Read the CSV
+        df = pd.read_csv(file_path, sep=None, engine='python', encoding='utf-8')
 
-        # Clean the column names so the database likes them 
-        # (removes symbols like $ and replaces spaces with _)
+        # Clean the column names
         df.columns = [c.replace('$', '').replace(' ', '_').lower() for c in df.columns]
 
         print(f"Uploading to table '{table_name}'...")
-        # This creates the table and puts the data in
         df.to_sql(table_name, engine, if_exists='replace', index=False)
         print(f"Done! Loaded {len(df)} rows into {table_name}.\n")
 
 if __name__ == "__main__":
-    # Wait for the database to be ready
     max_retries = 5
     for i in range(max_retries):
         try:
-            # Try to connect to the database
             with engine.connect() as connection:
                 print("Database connection successful!")
                 break
         except Exception:
             print(f"Database not ready yet (Attempt {i+1}/{max_retries}). Waiting...")
-            time.sleep(3) # Wait 3 seconds before trying again
+            time.sleep(3)
     else:
-        print("Could not connect to the database after several attempts. Exiting.")
+        print("Could not connect to the database. Exiting.")
         exit(1)
 
     try:
