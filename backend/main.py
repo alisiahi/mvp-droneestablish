@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from fastapi.responses import RedirectResponse
 from database import engine, SessionLocal, Base
 from models import Application
 
@@ -30,6 +31,30 @@ async def init_storage():
     try: s3.head_bucket(Bucket=BUCKET_NAME)
     except: s3.create_bucket(Bucket=BUCKET_NAME)
 
+@app.get("/applications/{betrieb_id}")
+def get_applications(betrieb_id: int, db: Session = Depends(get_db)):
+    apps = db.query(Application).filter(Application.betrieb_id == betrieb_id).order_by(Application.created_at.desc()).all()
+    return apps
+
+@app.get("/download/{file_path:path}")
+async def download_file(file_path: str):
+    try:
+        # Generate the internal presigned URL (valid for 1 hour)
+        url = s3.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': BUCKET_NAME, 'Key': file_path},
+            ExpiresIn=3600
+        )
+        
+        # --- FIX: Convert internal Docker hostname to localhost for your browser ---
+        # This transforms http://minio:9000/... into http://localhost:9000/...
+        public_url = url.replace("http://minio:9000", "http://localhost:9000")
+        
+        return RedirectResponse(public_url)
+    except Exception as e:
+        print(f"Download error: {e}")
+        raise HTTPException(status_code=404, detail="Datei nicht gefunden")
+    
 @app.post("/applications")
 def create_application(payload: dict, db: Session = Depends(get_db)):
     new_app = Application(**payload)
