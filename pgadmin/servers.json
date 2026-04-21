@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "KIWI-DB",
+      "Group": "Servers",
+      "Host": "db",
+      "Port": 5432,
+      "MaintenanceDB": "bvl_data",
+      "Username": "kiwi_user",
+      "SSLMode": "prefer",
+      "PassFile": "/tmp/pgpass"
+    }
+  }
+}

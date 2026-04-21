@@ -73,3 +73,16 @@ services:
       - "3000:3000"
     depends_on:
       - backend
+  # 6. pgAdmin
+  pgadmin:
+    build: ./pgadmin
+    container_name: kiwi_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@kiwi.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
