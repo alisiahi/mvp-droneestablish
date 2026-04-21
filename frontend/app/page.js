@@ -1,37 +1,30 @@
 "use client";
 import { useState } from "react";
-import { useSession, signIn } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import Header from "../components/Header";
+import Dashboard from "../components/Dashboard";
 import ApplicationForm from "../components/ApplicationForm";
 import SupportingDocuments from "@/components/SupportingDocuments";
 
-// Dynamically import Map to prevent SSR errors with Leaflet
-const Map = dynamic(() => import("../components/Map"), {
-  ssr: false,
-  loading: () => (
-    <div className="h-[600px] flex items-center justify-center bg-slate-100 rounded-3xl">
-      Lade Karte...
-    </div>
-  ),
-});
+const Map = dynamic(() => import("../components/Map"), { ssr: false });
 
 export default function Home() {
   const { data: session, status } = useSession();
-  const [view, setView] = useState("map");
+  const [view, setView] = useState("dashboard"); // Default to Dashboard
   const [savedParcels, setSavedParcels] = useState([]);
   const [uploadedFiles, setUploadedFiles] = useState([]);
 
-  // --- SUBMIT FINAL APPLICATION ---
   const handleFinalSubmit = async (formData) => {
-    // Using Optional Chaining (?.) to prevent crashes if session is slow to load
     const payload = {
-      user_id: session?.user?.id, // Keycloak 'sub'
-      betrieb_id: session?.user?.betrieb_id, // Keycloak Group Attribute
-      selected_parcels: savedParcels, // Map data
-      form_data: formData, // Form data
-      supporting_documents: uploadedFiles, // MinIO paths
-      type: "main",
+      user_id: session?.user?.id,
+      betrieb_id: session?.user?.betrieb_id,
+      winery_name: session?.user?.winery_name, // NEW
+      is_bio: session?.user?.is_bio, // NEW
+      selected_parcels: savedParcels,
+      form_data: formData,
+      supporting_documents: uploadedFiles,
+      type: view === "report_48" ? "48h_report" : "main",
     };
 
     try {
@@ -40,96 +33,90 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       if (res.ok) {
-        alert("Antrag erfolgreich eingereicht!");
-        window.location.reload(); // Refresh to start fresh
+        alert("Erfolgreich gespeichert!");
+        setView("dashboard");
       }
     } catch (err) {
-      console.error("Submission failed:", err);
-      alert("Fehler beim Senden. Bitte versuchen Sie es erneut.");
+      alert("Fehler beim Senden.");
     }
   };
 
-  const handleFinishSelection = () => {
-    if (savedParcels.length > 0) {
-      setView("form");
-    } else {
-      alert("Bitte wählen Sie zuerst mindestens ein Flurstück aus.");
-    }
-  };
-
-  // 1. Handle Loading State
-  if (status === "loading") {
+  if (status === "loading")
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500 font-medium">
-        KIWI Portal wird initialisiert...
+      <div className="flex min-h-screen items-center justify-center">
+        Lade Portal...
       </div>
     );
-  }
 
   return (
     <main className="flex min-h-screen flex-col items-center p-8 bg-slate-50">
       <Header />
 
-      <div className="max-w-5xl w-full">
-        <h1 className="text-3xl font-bold mb-8 text-center text-slate-800">
-          Drohnen-Anwendungsplan 2025
-        </h1>
+      {!session ? (
+        <div className="bg-white p-12 rounded-3xl shadow-sm text-center border border-slate-200 max-w-2xl">
+          <h2 className="text-2xl font-semibold mb-4">
+            Willkommen bei KIWI Drones
+          </h2>
+          <p className="text-slate-600">
+            Bitte melden Sie sich an, um Ihre Anträge zu verwalten.
+          </p>
+        </div>
+      ) : (
+        <div className="w-full max-w-5xl">
+          {/* VIEW CONTROLLER */}
+          {view === "dashboard" && (
+            <Dashboard
+              onAction={(action) => {
+                if (action === "new") setView("map");
+                else if (action === "history") setView("history");
+                // ... handle other actions
+              }}
+            />
+          )}
 
-        {!session ? (
-          /* --- LANDING VIEW (NOT LOGGED IN) --- */
-          <div className="bg-white p-12 rounded-3xl shadow-sm text-center border border-slate-200">
-            <h2 className="text-2xl font-semibold mb-4">
-              Willkommen im KIWI-Portal
-            </h2>
-            <p className="text-slate-600 mb-8 max-w-md mx-auto">
-              Bitte melden Sie sich an, um Ihre Flurstücke auszuwählen und Ihren
-              Anwendungsplan für den Weinbau digital einzureichen.
-            </p>
-            <button
-              onClick={() => signIn("keycloak")}
-              className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold text-lg hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all"
-            >
-              Jetzt Anmelden
-            </button>
-          </div>
-        ) : (
-          /* --- APP VIEW (LOGGED IN) --- */
-          <>
-            {view === "map" ? (
-              <div className="space-y-6">
-                {/* Parcel Selection View */}
-                <Map
-                  savedParcels={savedParcels}
-                  setSavedParcels={setSavedParcels}
-                  onFinish={handleFinishSelection}
-                />
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <button
-                  onClick={() => setView("map")}
-                  className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2 mb-4"
-                >
-                  ← Zurück zur Karte (Flurstücke bearbeiten)
-                </button>
+          {view === "map" && (
+            <Map
+              savedParcels={savedParcels}
+              setSavedParcels={setSavedParcels}
+              onFinish={() => setView("form")}
+            />
+          )}
 
-                {/* Application Form */}
-                <ApplicationForm onSubmit={handleFinalSubmit} />
+          {view === "form" && (
+            <>
+              <button
+                onClick={() => setView("map")}
+                className="mb-4 text-blue-600 font-medium"
+              >
+                ← Zurück
+              </button>
+              <ApplicationForm onSubmit={handleFinalSubmit} />
+              <SupportingDocuments
+                betrieb_id={session.user.betrieb_id}
+                onUploadSuccess={(path) =>
+                  setUploadedFiles((prev) => [...prev, path])
+                }
+              />
+            </>
+          )}
 
-                {/* File Upload Section */}
-                <SupportingDocuments
-                  betrieb_id={session?.user?.betrieb_id}
-                  onUploadSuccess={(path) =>
-                    setUploadedFiles((prev) => [...prev, path])
-                  }
-                />
-              </div>
-            )}
-          </>
-        )}
-      </div>
+          {view === "history" && (
+            <div className="text-center">
+              <button
+                onClick={() => setView("dashboard")}
+                className="mb-4 text-blue-600 font-medium"
+              >
+                ← Zum Dashboard
+              </button>
+              <h2 className="text-2xl font-bold">Vergangene Berichte</h2>
+              <p className="text-slate-500">
+                Hier werden bald Ihre Berichte aus pgAdmin angezeigt.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </main>
   );
 }
