@@ -1,12 +1,12 @@
 "use client";
 import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
 import dynamic from "next/dynamic";
 import Header from "../components/Header";
 import Dashboard from "../components/Dashboard";
 import ApplicationForm from "../components/ApplicationForm";
 import SupportingDocuments from "@/components/SupportingDocuments";
-import ApplicationHistory from "../components/ApplicationHistory"; // NEW
+import ApplicationHistory from "../components/ApplicationHistory";
 
 const Map = dynamic(() => import("../components/Map"), { ssr: false });
 
@@ -15,32 +15,155 @@ export default function Home() {
   const [view, setView] = useState("dashboard");
   const [savedParcels, setSavedParcels] = useState([]);
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [pendingFiles, setPendingFiles] = useState([]);
+  const [filesToDelete, setFilesToDelete] = useState([]);
+  const [currentAppId, setCurrentAppId] = useState(null);
+  const [initialFormData, setInitialFormData] = useState(null);
+
+  const processFiles = async () => {
+    // 1. Delete files
+    for (const path of filesToDelete) {
+      try {
+        await fetch(`http://localhost:8000/upload/${encodeURIComponent(path)}`, { method: "DELETE" });
+      } catch (e) {
+        console.error("Delete failed", e);
+      }
+    }
+
+    // 2. Upload pending files
+    const newlyUploadedPaths = [];
+    if (pendingFiles.length > 0) {
+      const tempAppId = `temp-${Date.now()}`;
+      for (const file of pendingFiles) {
+        const fd = new FormData();
+        fd.append("file", file);
+        try {
+          const res = await fetch(`http://localhost:8000/upload/${session.user.betrieb_id}/${tempAppId}`, { method: "POST", body: fd });
+          const data = await res.json();
+          newlyUploadedPaths.push(data.minio_path);
+        } catch (e) {
+          console.error("Upload failed", e);
+        }
+      }
+    }
+
+    return newlyUploadedPaths;
+  };
 
   const handleFinalSubmit = async (formData) => {
+    const newlyUploadedPaths = await processFiles();
+    const finalDocs = [...uploadedFiles.filter(p => !filesToDelete.includes(p)), ...newlyUploadedPaths];
+
     const payload = {
       user_id: session?.user?.id,
+      user_roles: session?.user?.roles,
       betrieb_id: session?.user?.betrieb_id,
       winery_name: session?.user?.winery_name,
       is_bio: session?.user?.is_bio,
       selected_parcels: savedParcels,
       form_data: formData,
-      supporting_documents: uploadedFiles,
+      supporting_documents: finalDocs,
       type: "main",
+      status: "submitted",
     };
 
     try {
-      const res = await fetch("http://localhost:8000/applications", {
-        method: "POST",
+      const url = currentAppId 
+        ? `http://localhost:8000/applications/${currentAppId}`
+        : "http://localhost:8000/applications";
+      const method = currentAppId ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       if (res.ok) {
         alert("Erfolgreich eingereicht!");
         setView("dashboard");
+        setCurrentAppId(null);
+        setInitialFormData(null);
+        setSavedParcels([]);
+        setUploadedFiles([]);
+        setPendingFiles([]);
+        setFilesToDelete([]);
+      } else if (res.status === 403) {
+        alert("Sie haben nicht die Berechtigung, den Antrag abzuschließen.");
+      } else {
+        alert("Fehler beim Einreichen!");
       }
     } catch (err) {
       alert("Fehler!");
     }
+  };
+
+  const handleSaveDraft = async (formData) => {
+    const newlyUploadedPaths = await processFiles();
+    const finalDocs = [...uploadedFiles.filter(p => !filesToDelete.includes(p)), ...newlyUploadedPaths];
+
+    const payload = {
+      user_id: session?.user?.id,
+      user_roles: session?.user?.roles,
+      betrieb_id: session?.user?.betrieb_id,
+      winery_name: session?.user?.winery_name,
+      is_bio: session?.user?.is_bio,
+      selected_parcels: savedParcels,
+      form_data: formData,
+      supporting_documents: finalDocs,
+      type: "main",
+      status: "draft",
+    };
+
+    try {
+      const url = currentAppId 
+        ? `http://localhost:8000/applications/${currentAppId}`
+        : "http://localhost:8000/applications";
+      const method = currentAppId ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (!currentAppId) setCurrentAppId(data.id);
+        alert("Entwurf erfolgreich gespeichert!");
+        setView("dashboard");
+        setCurrentAppId(null);
+        setInitialFormData(null);
+        setSavedParcels([]);
+        setUploadedFiles([]);
+        setPendingFiles([]);
+        setFilesToDelete([]);
+      } else {
+        alert("Fehler beim Speichern!");
+      }
+    } catch (err) {
+      alert("Fehler beim Speichern des Entwurfs!");
+    }
+  };
+
+  const handleEditDraft = (app) => {
+    setCurrentAppId(app.id);
+    setSavedParcels(app.selected_parcels || []);
+    setInitialFormData(app.form_data);
+    setUploadedFiles(app.supporting_documents || []);
+    setPendingFiles([]);
+    setFilesToDelete([]);
+    setView("form");
+  };
+
+  const handleAction = (id) => {
+    if (id === "new") {
+      setCurrentAppId(null);
+      setInitialFormData(null);
+      setSavedParcels([]);
+      setUploadedFiles([]);
+      setPendingFiles([]);
+      setFilesToDelete([]);
+    }
+    setView(id);
   };
 
   if (status === "loading")
@@ -57,12 +180,19 @@ export default function Home() {
       <div className="w-full max-w-5xl">
         {!session ? (
           <div className="bg-white p-12 rounded-3xl shadow-sm text-center border border-slate-200">
-            {/* Login screen code... */}
+            <h2 className="text-2xl font-bold mb-4 text-slate-800">Willkommen bei DroneEstablish</h2>
+            <p className="text-slate-600 mb-6">Bitte melden Sie sich an, um fortzufahren.</p>
+            <button
+              onClick={() => signIn("keycloak")}
+              className="bg-blue-600 text-white px-8 py-3 rounded-full font-semibold shadow-md hover:bg-blue-700 transition"
+            >
+              Mit Keycloak anmelden
+            </button>
           </div>
         ) : (
           <>
             {view === "dashboard" && (
-              <Dashboard onAction={(id) => setView(id)} />
+              <Dashboard onAction={handleAction} />
             )}
 
             {view === "new" && (
@@ -81,12 +211,18 @@ export default function Home() {
                 >
                   ← Zurück zur Karte
                 </button>
-                <ApplicationForm onSubmit={handleFinalSubmit} />
+                <ApplicationForm 
+                  onSubmit={handleFinalSubmit} 
+                  onSaveDraft={handleSaveDraft}
+                  initialData={initialFormData} 
+                  roles={session.user.roles}
+                />
                 <SupportingDocuments
-                  betrieb_id={session.user.betrieb_id}
-                  onUploadSuccess={(path) =>
-                    setUploadedFiles((prev) => [...prev, path])
-                  }
+                  existingFiles={uploadedFiles.filter(p => !filesToDelete.includes(p))}
+                  pendingFiles={pendingFiles}
+                  onAddFile={(file) => setPendingFiles((prev) => [...prev, file])}
+                  onRemovePendingFile={(idx) => setPendingFiles((prev) => prev.filter((_, i) => i !== idx))}
+                  onRemoveExistingFile={(path) => setFilesToDelete((prev) => [...prev, path])}
                 />
               </div>
             )}
@@ -95,6 +231,7 @@ export default function Home() {
               <ApplicationHistory
                 betrieb_id={session.user.betrieb_id}
                 onBack={() => setView("dashboard")}
+                onEditDraft={handleEditDraft}
               />
             )}
           </>

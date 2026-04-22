@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Download, MapPin, ClipboardList, Info } from "lucide-react";
 
-export default function ApplicationHistory({ betrieb_id, onBack }) {
+export default function ApplicationHistory({ betrieb_id, onBack, onEditDraft }) {
   const [applications, setApplications] = useState([]);
   const [selectedApp, setSelectedApp] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -276,15 +276,21 @@ export default function ApplicationHistory({ betrieb_id, onBack }) {
         {applications.map((app) => (
           <div
             key={app.id}
-            onClick={() => setSelectedApp(app)}
-            className="group flex justify-between items-center p-10 bg-white border-4 border-slate-100 hover:border-slate-900 cursor-pointer transition-all hover:shadow-2xl active:scale-[0.98]"
+            onClick={() => {
+              if (app.status === "draft") {
+                if (onEditDraft) onEditDraft(app);
+              } else {
+                setSelectedApp(app);
+              }
+            }}
+            className={`group flex justify-between items-center p-10 bg-white border-4 ${app.status === "draft" ? "border-amber-200 hover:border-amber-500" : "border-slate-100 hover:border-slate-900"} cursor-pointer transition-all hover:shadow-2xl active:scale-[0.98]`}
           >
             <div className="flex items-center gap-10">
-              <span className="text-5xl font-black italic text-slate-100 group-hover:text-slate-900 transition-colors">
+              <span className={`text-5xl font-black italic ${app.status === "draft" ? "text-amber-100 group-hover:text-amber-500" : "text-slate-100 group-hover:text-slate-900"} transition-colors`}>
                 #{app.id}
               </span>
               <div>
-                <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.25em] mb-2">
+                <p className={`text-[10px] font-black uppercase tracking-[0.25em] mb-2 ${app.status === "draft" ? "text-amber-600" : "text-blue-600"}`}>
                   {app.type === "main"
                     ? "Jahres-Anwendungsplan [cite: 3]"
                     : "48h Meldung"}
@@ -299,12 +305,18 @@ export default function ApplicationHistory({ betrieb_id, onBack }) {
               </div>
             </div>
             <div className="flex items-center gap-8">
-              <span
-                className={`text-[11px] font-black px-4 py-1.5 border-[3px] ${app.is_bio ? "border-green-600 text-green-600" : "border-slate-300 text-slate-400"}`}
-              >
-                {app.is_bio ? "BIO" : "KONV"}
-              </span>
-              <span className="text-4xl font-black text-slate-200 group-hover:translate-x-3 group-hover:text-slate-900 transition-all">
+              {app.status === "draft" ? (
+                <span className="text-[11px] font-black px-4 py-1.5 border-[3px] border-amber-500 text-amber-500 bg-amber-50">
+                  ENTWURF
+                </span>
+              ) : (
+                <span
+                  className={`text-[11px] font-black px-4 py-1.5 border-[3px] ${app.is_bio ? "border-green-600 text-green-600" : "border-slate-300 text-slate-400"}`}
+                >
+                  {app.is_bio ? "BIO" : "KONV"}
+                </span>
+              )}
+              <span className={`text-4xl font-black group-hover:translate-x-3 transition-all ${app.status === "draft" ? "text-amber-200 group-hover:text-amber-500" : "text-slate-200 group-hover:text-slate-900"}`}>
                 →
               </span>
             </div>

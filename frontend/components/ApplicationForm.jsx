@@ -5,8 +5,8 @@ import { Accordion } from "@/components/ui/accordion";
 import GeneralInfo from "./GeneralInfo";
 import SpritzungItem from "./SpritzungItem";
 
-export default function ApplicationForm({ onSubmit }) {
-  const [formData, setFormData] = useState({
+export default function ApplicationForm({ onSubmit, onSaveDraft, initialData, roles = [] }) {
+  const [formData, setFormData] = useState(initialData || {
     general: { spritzgemeinschaft: "", ansprechpartner: "", tel: "" },
     spritzungen: Array.from({ length: 9 }, (_, i) => ({
       id: i + 1,
@@ -26,6 +26,8 @@ export default function ApplicationForm({ onSubmit }) {
     newSpritzungen[index] = updatedData;
     setFormData((prev) => ({ ...prev, spritzungen: newSpritzungen }));
   };
+
+  const isWinzer = roles.includes("winzer");
 
   return (
     <div className="max-w-5xl mx-auto p-4 space-y-6">
@@ -49,19 +51,27 @@ export default function ApplicationForm({ onSubmit }) {
         ))}
       </Accordion>
 
-      <div className="flex gap-4 justify-end pt-4">
-        <Button
-          variant="outline"
-          onClick={() => console.log("Draft", formData)}
-        >
-          Entwurf speichern
-        </Button>
-        <Button
-          className="bg-blue-700 hover:bg-blue-800"
-          onClick={() => onSubmit(formData)} // Trigger final submission
-        >
-          Antrag abschließen
-        </Button>
+      <div className="flex flex-col items-end gap-2 pt-4">
+        <div className="flex gap-4">
+          <Button
+            variant="outline"
+            onClick={() => onSaveDraft && onSaveDraft(formData)}
+          >
+            Entwurf speichern
+          </Button>
+          <Button
+            className="bg-blue-700 hover:bg-blue-800"
+            disabled={!isWinzer}
+            onClick={() => onSubmit(formData)} // Trigger final submission
+          >
+            Antrag abschließen
+          </Button>
+        </div>
+        {!isWinzer && (
+          <p className="text-xs text-red-500 font-medium italic">
+            Nur Nutzer mit der Rolle "Winzer" können den Antrag abschließen.
+          </p>
+        )}
       </div>
     </div>
   );

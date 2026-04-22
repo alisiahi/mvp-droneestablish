@@ -57,16 +57,45 @@ async def download_file(file_path: str):
     
 @app.post("/applications")
 def create_application(payload: dict, db: Session = Depends(get_db)):
+    user_roles = payload.pop("user_roles", [])
+    if payload.get("status") == "submitted" and "winzer" not in user_roles:
+        raise HTTPException(status_code=403, detail="Only users with winzer role can submit applications")
+        
     new_app = Application(**payload)
     db.add(new_app)
     db.commit()
     return {"status": "success", "id": new_app.id}
+
+@app.put("/applications/{app_id}")
+def update_application(app_id: int, payload: dict, db: Session = Depends(get_db)):
+    user_roles = payload.pop("user_roles", [])
+    if payload.get("status") == "submitted" and "winzer" not in user_roles:
+        raise HTTPException(status_code=403, detail="Only users with winzer role can submit applications")
+
+    db_app = db.query(Application).filter(Application.id == app_id).first()
+    if not db_app:
+        raise HTTPException(status_code=404, detail="Application not found")
+    
+    for key, value in payload.items():
+        setattr(db_app, key, value)
+        
+    db.commit()
+    return {"status": "success", "id": db_app.id}
 
 @app.post("/upload/{betrieb_id}/{app_temp_id}")
 async def upload_file(betrieb_id: int, app_temp_id: str, file: UploadFile = File(...)):
     file_path = f"{betrieb_id}/{app_temp_id}/{file.filename}"
     s3.upload_fileobj(file.file, BUCKET_NAME, file_path)
     return {"minio_path": file_path}
+
+@app.delete("/upload/{file_path:path}")
+def delete_file(file_path: str):
+    try:
+        s3.delete_object(Bucket=BUCKET_NAME, Key=file_path)
+        return {"status": "success"}
+    except Exception as e:
+        print(f"Delete error: {e}")
+        raise HTTPException(status_code=500, detail="Fehler beim Löschen der Datei")
 
 
 @app.get("/")
