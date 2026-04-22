@@ -1,7 +1,7 @@
 "use client";
 import { signIn, signOut, useSession } from "next-auth/react";
 
-export default function Header() {
+export default function Header({ onHomeClick }) {
   const { data: session } = useSession();
 
   const handleLogout = async () => {
@@ -21,7 +21,7 @@ export default function Header() {
   return (
     <header className="w-full max-w-5xl flex justify-between items-center py-4 px-6 bg-white shadow-sm rounded-2xl mb-8 border border-slate-100">
       <div className="flex flex-col">
-        <div className="font-bold text-xl text-blue-900 flex items-center gap-2">
+        <div className="font-bold text-xl text-blue-900 flex items-center gap-2 cursor-pointer" onClick={onHomeClick}>
           <span>🥝 KIWI Drones</span>
           {session?.user && (
             <span className="text-xs font-normal bg-slate-100 text-slate-500 px-2 py-1 rounded-md border border-slate-200">

@@ -10,7 +10,7 @@ export default function ApplicationForm({ onSubmit, onSaveDraft, initialData, ro
     general: { spritzgemeinschaft: "", ansprechpartner: "", tel: "" },
     spritzungen: Array.from({ length: 9 }, (_, i) => ({
       id: i + 1,
-      es: "16-61", // Default from PDF [cite: 60]
+      es: "16-61",
       date: "",
       verantwortlicher: "",
       anmerkungen: "",

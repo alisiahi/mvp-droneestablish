@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from fastapi.responses import RedirectResponse
 from database import engine, SessionLocal, Base
-from models import Application
+from models import Application, Jahresmeldung, Report48h
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI(title="KIWI Drone API")
@@ -81,6 +81,46 @@ def update_application(app_id: int, payload: dict, db: Session = Depends(get_db)
         
     db.commit()
     return {"status": "success", "id": db_app.id}
+
+@app.post("/jahresmeldung")
+def create_jahresmeldung(payload: dict, db: Session = Depends(get_db)):
+    user_roles = payload.pop("user_roles", [])
+    if "winzer" not in user_roles:
+        raise HTTPException(status_code=403, detail="Only users with winzer role can submit")
+        
+    new_jm = Jahresmeldung(**payload)
+    db.add(new_jm)
+    db.commit()
+    return {"status": "success", "id": new_jm.id}
+
+@app.get("/jahresmeldung/{app_id}")
+def get_jahresmeldung(app_id: int, db: Session = Depends(get_db)):
+    jm = db.query(Jahresmeldung).filter(Jahresmeldung.application_id == app_id).first()
+    return jm
+
+@app.get("/jahresmeldung/betrieb/{betrieb_id}")
+def get_jahresmeldungen(betrieb_id: int, db: Session = Depends(get_db)):
+    return db.query(Jahresmeldung).filter(Jahresmeldung.betrieb_id == betrieb_id).order_by(Jahresmeldung.created_at.desc()).all()
+
+@app.post("/report48h")
+def create_report48h(payload: dict, db: Session = Depends(get_db)):
+    user_roles = payload.pop("user_roles", [])
+    if "winzer" not in user_roles:
+        raise HTTPException(status_code=403, detail="Only users with winzer role can submit")
+        
+    new_rep = Report48h(**payload)
+    db.add(new_rep)
+    db.commit()
+    return {"status": "success", "id": new_rep.id}
+
+@app.get("/report48h/{app_id}")
+def get_report48h(app_id: int, db: Session = Depends(get_db)):
+    reps = db.query(Report48h).filter(Report48h.application_id == app_id).all()
+    return reps
+
+@app.get("/report48h/betrieb/{betrieb_id}")
+def get_report48h_by_betrieb(betrieb_id: int, db: Session = Depends(get_db)):
+    return db.query(Report48h).filter(Report48h.betrieb_id == betrieb_id).order_by(Report48h.created_at.desc()).all()
 
 @app.post("/upload/{betrieb_id}/{app_temp_id}")
 async def upload_file(betrieb_id: int, app_temp_id: str, file: UploadFile = File(...)):

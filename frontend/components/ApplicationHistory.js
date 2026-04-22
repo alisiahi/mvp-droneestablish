@@ -2,19 +2,43 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Download, MapPin, ClipboardList, Info } from "lucide-react";
+import ArchivReportDetail from "./ArchivReportDetail";
 
 export default function ApplicationHistory({ betrieb_id, onBack, onEditDraft }) {
-  const [applications, setApplications] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [selectedApp, setSelectedApp] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`http://localhost:8000/applications/${betrieb_id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setApplications(data);
+    const fetchAll = async () => {
+      try {
+        const [appRes, jmRes, r48Res] = await Promise.all([
+          fetch(`http://localhost:8000/applications/${betrieb_id}`),
+          fetch(`http://localhost:8000/jahresmeldung/betrieb/${betrieb_id}`),
+          fetch(`http://localhost:8000/report48h/betrieb/${betrieb_id}`)
+        ]);
+
+        const apps = await appRes.json();
+        const jms = await jmRes.json();
+        const r48s = await r48Res.json();
+
+        // Tag them so we know what they are
+        const taggedApps = apps.map(a => ({ ...a, docType: "application" }));
+        const taggedJMs = jms.map(j => ({ ...j, docType: "jahresmeldung" }));
+        const taggedR48s = r48s.map(r => ({ ...r, docType: "report48h" }));
+
+        const allDocs = [...taggedApps, ...taggedJMs, ...taggedR48s].sort((a, b) =>
+          new Date(b.created_at) - new Date(a.created_at)
+        );
+
+        setDocuments(allDocs);
+      } catch (err) {
+        console.error("Error fetching history:", err);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+    fetchAll();
   }, [betrieb_id]);
 
   if (loading)
@@ -26,6 +50,17 @@ export default function ApplicationHistory({ betrieb_id, onBack, onEditDraft }) 
 
   // --- DETAIL VIEW: Exact matches to ZAWP_D_2025 PDF ---
   if (selectedApp) {
+    const isMain = selectedApp.docType === "application";
+
+    if (!isMain) {
+      return (
+        <ArchivReportDetail
+          report={selectedApp}
+          onBack={() => setSelectedApp(null)}
+        />
+      );
+    }
+
     const { general, spritzungen } = selectedApp.form_data;
 
     return (
@@ -38,11 +73,11 @@ export default function ApplicationHistory({ betrieb_id, onBack, onEditDraft }) 
         </button>
 
         <Card className="border-[3px] border-slate-900 shadow-2xl rounded-none overflow-hidden bg-white">
-          {/* 1. OFFICIAL HEADER [cite: 3, 5] */}
+          {/* 1. OFFICIAL HEADER  */}
           <div className="bg-slate-900 text-white p-8 flex justify-between items-center border-b-[3px] border-slate-900">
             <div>
               <h1 className="text-2xl font-black tracking-tight leading-tight">
-                ANWENDUNGSPLAN Drohne Steillagenweinbau 2025 [cite: 3]
+                ANWENDUNGSPLAN Drohne Steillagenweinbau 2025
               </h1>
               <p className="text-slate-400 font-mono text-xs mt-1 uppercase tracking-widest">
                 Eingereicht am:{" "}
@@ -241,10 +276,10 @@ export default function ApplicationHistory({ betrieb_id, onBack, onEditDraft }) 
                 ))}
                 {(!selectedApp.supporting_documents ||
                   selectedApp.supporting_documents.length === 0) && (
-                  <p className="text-[10px] text-slate-500 italic uppercase">
-                    Keine Dateien hochgeladen.
-                  </p>
-                )}
+                    <p className="text-[10px] text-slate-500 italic uppercase">
+                      Keine Dateien hochgeladen.
+                    </p>
+                  )}
               </div>
             </div>
           </CardContent>
@@ -273,55 +308,62 @@ export default function ApplicationHistory({ betrieb_id, onBack, onEditDraft }) 
       </div>
 
       <div className="grid gap-6">
-        {applications.map((app) => (
-          <div
-            key={app.id}
-            onClick={() => {
-              if (app.status === "draft") {
-                if (onEditDraft) onEditDraft(app);
-              } else {
-                setSelectedApp(app);
-              }
-            }}
-            className={`group flex justify-between items-center p-10 bg-white border-4 ${app.status === "draft" ? "border-amber-200 hover:border-amber-500" : "border-slate-100 hover:border-slate-900"} cursor-pointer transition-all hover:shadow-2xl active:scale-[0.98]`}
-          >
-            <div className="flex items-center gap-10">
-              <span className={`text-5xl font-black italic ${app.status === "draft" ? "text-amber-100 group-hover:text-amber-500" : "text-slate-100 group-hover:text-slate-900"} transition-colors`}>
-                #{app.id}
-              </span>
-              <div>
-                <p className={`text-[10px] font-black uppercase tracking-[0.25em] mb-2 ${app.status === "draft" ? "text-amber-600" : "text-blue-600"}`}>
-                  {app.type === "main"
-                    ? "Jahres-Anwendungsplan [cite: 3]"
-                    : "48h Meldung"}
-                </p>
-                <p className="text-3xl font-black text-slate-800">
-                  {new Date(app.created_at).toLocaleDateString("de-DE", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                  })}
-                </p>
+        {documents.map((app) => {
+          const isDraft = app.status === "draft";
+          const title = app.docType === "application"
+            ? "Jahres-Anwendungsplan"
+            : app.docType === "jahresmeldung"
+              ? "Jahresbericht"
+              : "48h Meldung";
+
+          return (
+            <div
+              key={`${app.docType}-${app.id}`}
+              onClick={() => {
+                if (isDraft) {
+                  if (onEditDraft) onEditDraft(app);
+                } else {
+                  setSelectedApp(app);
+                }
+              }}
+              className={`group flex justify-between items-center p-10 bg-white border-4 ${isDraft ? "border-amber-200 hover:border-amber-500" : "border-slate-100 hover:border-slate-900"} cursor-pointer transition-all hover:shadow-2xl active:scale-[0.98]`}
+            >
+              <div className="flex items-center gap-10">
+                <span className={`text-5xl font-black italic ${isDraft ? "text-amber-100 group-hover:text-amber-500" : "text-slate-100 group-hover:text-slate-900"} transition-colors`}>
+                  #{app.id}
+                </span>
+                <div>
+                  <p className={`text-[10px] font-black uppercase tracking-[0.25em] mb-2 ${isDraft ? "text-amber-600" : "text-blue-600"}`}>
+                    {title}
+                  </p>
+                  <p className="text-3xl font-black text-slate-800">
+                    {new Date(app.created_at).toLocaleDateString("de-DE", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    })}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-8">
+                {isDraft ? (
+                  <span className="text-[11px] font-black px-4 py-1.5 border-[3px] border-amber-500 text-amber-500 bg-amber-50">
+                    ENTWURF
+                  </span>
+                ) : (
+                  <span
+                    className={`text-[11px] font-black px-4 py-1.5 border-[3px] ${app.is_bio ? "border-green-600 text-green-600" : "border-slate-300 text-slate-400"}`}
+                  >
+                    {app.docType === "application" ? (app.is_bio ? "BIO ABGESCHLOSSEN" : "KONV ABGESCHLOSSEN") : "ABGESCHLOSSEN"}
+                  </span>
+                )}
+                <span className={`text-4xl font-black group-hover:translate-x-3 transition-all ${isDraft ? "text-amber-200 group-hover:text-amber-500" : "text-slate-200 group-hover:text-slate-900"}`}>
+                  →
+                </span>
               </div>
             </div>
-            <div className="flex items-center gap-8">
-              {app.status === "draft" ? (
-                <span className="text-[11px] font-black px-4 py-1.5 border-[3px] border-amber-500 text-amber-500 bg-amber-50">
-                  ENTWURF
-                </span>
-              ) : (
-                <span
-                  className={`text-[11px] font-black px-4 py-1.5 border-[3px] ${app.is_bio ? "border-green-600 text-green-600" : "border-slate-300 text-slate-400"}`}
-                >
-                  {app.is_bio ? "BIO" : "KONV"}
-                </span>
-              )}
-              <span className={`text-4xl font-black group-hover:translate-x-3 transition-all ${app.status === "draft" ? "text-amber-200 group-hover:text-amber-500" : "text-slate-200 group-hover:text-slate-900"}`}>
-                →
-              </span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

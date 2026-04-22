@@ -20,7 +20,7 @@ export default function Dashboard({ onAction }) {
     },
     {
       id: "history",
-      title: "Bisherige Anträge und Berichte",
+      title: "Archiv",
       color: "bg-white text-slate-800 border-slate-900",
     },
   ];

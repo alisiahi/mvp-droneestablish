@@ -7,6 +7,9 @@ import Dashboard from "../components/Dashboard";
 import ApplicationForm from "../components/ApplicationForm";
 import SupportingDocuments from "@/components/SupportingDocuments";
 import ApplicationHistory from "../components/ApplicationHistory";
+import ReportAppSelector from "../components/ReportAppSelector";
+import JahresmeldungForm from "../components/JahresmeldungForm";
+import Report48Form from "../components/Report48Form";
 
 const Map = dynamic(() => import("../components/Map"), { ssr: false });
 
@@ -19,6 +22,7 @@ export default function Home() {
   const [filesToDelete, setFilesToDelete] = useState([]);
   const [currentAppId, setCurrentAppId] = useState(null);
   const [initialFormData, setInitialFormData] = useState(null);
+  const [selectedReportApp, setSelectedReportApp] = useState(null);
 
   const processFiles = async () => {
     // 1. Delete files
@@ -154,6 +158,60 @@ export default function Home() {
     setView("form");
   };
 
+  const handleSubmitJahresmeldung = async (formData) => {
+    const payload = {
+      application_id: selectedReportApp.id,
+      user_id: session?.user?.id,
+      user_roles: session?.user?.roles,
+      betrieb_id: session?.user?.betrieb_id,
+      spritzgemeinschaft: formData.spritzgemeinschaft,
+      form_data: { spritzungen: formData.spritzungen }
+    };
+    try {
+      const res = await fetch("http://localhost:8000/jahresmeldung", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        alert("Jahresmeldung erfolgreich eingereicht!");
+        setView("dashboard");
+        setSelectedReportApp(null);
+      } else {
+        alert("Fehler beim Einreichen!");
+      }
+    } catch (e) {
+      alert("Fehler!");
+    }
+  };
+
+  const handleSubmitReport48 = async (formData) => {
+    const payload = {
+      application_id: selectedReportApp.id,
+      user_id: session?.user?.id,
+      user_roles: session?.user?.roles,
+      betrieb_id: session?.user?.betrieb_id,
+      spritzgemeinschaft: formData.spritzgemeinschaft,
+      form_data: { spritzung: formData.spritzung }
+    };
+    try {
+      const res = await fetch("http://localhost:8000/report48h", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        alert("48-Stunden Meldung erfolgreich eingereicht!");
+        setView("dashboard");
+        setSelectedReportApp(null);
+      } else {
+        alert("Fehler beim Einreichen!");
+      }
+    } catch (e) {
+      alert("Fehler!");
+    }
+  };
+
   const handleAction = (id) => {
     if (id === "new") {
       setCurrentAppId(null);
@@ -162,6 +220,9 @@ export default function Home() {
       setUploadedFiles([]);
       setPendingFiles([]);
       setFilesToDelete([]);
+    }
+    if (id === "report_yearly" || id === "report_48") {
+      setSelectedReportApp(null);
     }
     setView(id);
   };
@@ -175,7 +236,7 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col items-center p-8 bg-slate-50">
-      <Header />
+      <Header onHomeClick={() => setView("dashboard")} />
 
       <div className="w-full max-w-5xl">
         {!session ? (
@@ -232,6 +293,40 @@ export default function Home() {
                 betrieb_id={session.user.betrieb_id}
                 onBack={() => setView("dashboard")}
                 onEditDraft={handleEditDraft}
+              />
+            )}
+
+            {view === "report_yearly" && !selectedReportApp && (
+              <ReportAppSelector 
+                betrieb_id={session.user.betrieb_id} 
+                title="Jahresbericht - Antrag auswählen"
+                onSelect={(app) => setSelectedReportApp(app)} 
+                onBack={() => setView("dashboard")} 
+              />
+            )}
+            
+            {view === "report_yearly" && selectedReportApp && (
+              <JahresmeldungForm 
+                application={selectedReportApp}
+                onSubmit={handleSubmitJahresmeldung}
+                onCancel={() => setSelectedReportApp(null)}
+              />
+            )}
+
+            {view === "report_48" && !selectedReportApp && (
+              <ReportAppSelector 
+                betrieb_id={session.user.betrieb_id} 
+                title="48-Stunden Meldung - Antrag auswählen"
+                onSelect={(app) => setSelectedReportApp(app)} 
+                onBack={() => setView("dashboard")} 
+              />
+            )}
+            
+            {view === "report_48" && selectedReportApp && (
+              <Report48Form 
+                application={selectedReportApp}
+                onSubmit={handleSubmitReport48}
+                onCancel={() => setSelectedReportApp(null)}
               />
             )}
           </>
