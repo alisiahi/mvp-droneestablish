@@ -46,9 +46,11 @@ async def download_file(file_path: str):
             ExpiresIn=3600
         )
         
-        # --- FIX: Convert internal Docker hostname to localhost for your browser ---
-        # This transforms http://minio:9000/... into http://localhost:9000/...
-        public_url = url.replace("http://minio:9000", "http://localhost:9000")
+        # --- FIX: Convert internal Docker hostname to relative path so Nginx proxies it ---
+        # This transforms http://minio:9000/bucket/key... into /minio/bucket/key...
+        # The browser will then resolve it against the current origin!
+        path_and_query = url.split('http://minio:9000')[1]
+        public_url = f"/minio{path_and_query}"
         
         return RedirectResponse(public_url)
     except Exception as e:

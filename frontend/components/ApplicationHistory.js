@@ -13,9 +13,9 @@ export default function ApplicationHistory({ betrieb_id, onBack, onEditDraft }) 
     const fetchAll = async () => {
       try {
         const [appRes, jmRes, r48Res] = await Promise.all([
-          fetch(`http://localhost:8000/applications/${betrieb_id}`),
-          fetch(`http://localhost:8000/jahresmeldung/betrieb/${betrieb_id}`),
-          fetch(`http://localhost:8000/report48h/betrieb/${betrieb_id}`)
+          fetch(`/api/applications/${betrieb_id}`),
+          fetch(`/api/jahresmeldung/betrieb/${betrieb_id}`),
+          fetch(`/api/report48h/betrieb/${betrieb_id}`)
         ]);
 
         const apps = await appRes.json();
@@ -266,7 +266,7 @@ export default function ApplicationHistory({ betrieb_id, onBack, onEditDraft }) 
                 {selectedApp.supporting_documents?.map((path, i) => (
                   <a
                     key={i}
-                    href={`http://localhost:8000/download/${path}`}
+                    href={`/api/download/${path}`}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-2 bg-white text-slate-900 hover:bg-blue-600 hover:text-white border-2 border-white px-6 py-3 text-[10px] font-black transition-all shadow-[6px_6px_0px_0px_rgba(30,41,59,1)] active:translate-x-1 active:translate-y-1 active:shadow-none"

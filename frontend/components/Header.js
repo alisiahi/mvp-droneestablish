@@ -10,7 +10,7 @@ export default function Header({ onHomeClick }) {
       return;
     }
     const keycloakLogoutUrl =
-      `http://localhost:8080/realms/kiwi-realm/protocol/openid-connect/logout` +
+      `/auth/realms/kiwi-realm/protocol/openid-connect/logout` +
       `?post_logout_redirect_uri=${encodeURIComponent(window.location.origin)}` +
       `&id_token_hint=${session.id_token}`;
 

@@ -28,7 +28,7 @@ export default function Home() {
     // 1. Delete files
     for (const path of filesToDelete) {
       try {
-        await fetch(`http://localhost:8000/upload/${encodeURIComponent(path)}`, { method: "DELETE" });
+        await fetch(`/api/upload/${encodeURIComponent(path)}`, { method: "DELETE" });
       } catch (e) {
         console.error("Delete failed", e);
       }
@@ -42,7 +42,7 @@ export default function Home() {
         const fd = new FormData();
         fd.append("file", file);
         try {
-          const res = await fetch(`http://localhost:8000/upload/${session.user.betrieb_id}/${tempAppId}`, { method: "POST", body: fd });
+          const res = await fetch(`/api/upload/${session.user.betrieb_id}/${tempAppId}`, { method: "POST", body: fd });
           const data = await res.json();
           newlyUploadedPaths.push(data.minio_path);
         } catch (e) {
@@ -73,8 +73,8 @@ export default function Home() {
 
     try {
       const url = currentAppId 
-        ? `http://localhost:8000/applications/${currentAppId}`
-        : "http://localhost:8000/applications";
+        ? `/api/applications/${currentAppId}`
+        : "/api/applications";
       const method = currentAppId ? "PUT" : "POST";
 
       const res = await fetch(url, {
@@ -120,8 +120,8 @@ export default function Home() {
 
     try {
       const url = currentAppId 
-        ? `http://localhost:8000/applications/${currentAppId}`
-        : "http://localhost:8000/applications";
+        ? `/api/applications/${currentAppId}`
+        : "/api/applications";
       const method = currentAppId ? "PUT" : "POST";
 
       const res = await fetch(url, {
@@ -168,7 +168,7 @@ export default function Home() {
       form_data: { spritzungen: formData.spritzungen }
     };
     try {
-      const res = await fetch("http://localhost:8000/jahresmeldung", {
+      const res = await fetch("/api/jahresmeldung", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -195,7 +195,7 @@ export default function Home() {
       form_data: { spritzung: formData.spritzung }
     };
     try {
-      const res = await fetch("http://localhost:8000/report48h", {
+      const res = await fetch("/api/report48h", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

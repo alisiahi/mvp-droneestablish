@@ -25,7 +25,7 @@ import {
   Info,
 } from "lucide-react";
 
-const API_BASE = "http://46.225.154.106:8000";
+const API_BASE = "/api";
 
 // ✅ Growth Stage Translation Map (Expand this as needed)
 const STAGE_MAP = {

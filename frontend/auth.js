@@ -21,15 +21,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // 3. This is the magic line that stops the "fetch failed" and "iss mismatch"
       client: {
         issuer_metadata: {
-          issuer: "http://localhost:8080/realms/kiwi-realm",
+          issuer: process.env.AUTH_KEYCLOAK_ISSUER,
           authorization_endpoint:
-            "http://localhost:8080/realms/kiwi-realm/protocol/openid-connect/auth",
+            `${process.env.AUTH_KEYCLOAK_ISSUER}/protocol/openid-connect/auth`,
           token_endpoint:
-            "http://keycloak:8080/realms/kiwi-realm/protocol/openid-connect/token",
+            `${process.env.AUTH_KEYCLOAK_INTERNAL_ISSUER}/protocol/openid-connect/token`,
           userinfo_endpoint:
-            "http://keycloak:8080/realms/kiwi-realm/protocol/openid-connect/userinfo",
+            `${process.env.AUTH_KEYCLOAK_INTERNAL_ISSUER}/protocol/openid-connect/userinfo`,
           jwks_uri:
-            "http://keycloak:8080/realms/kiwi-realm/protocol/openid-connect/certs",
+            `${process.env.AUTH_KEYCLOAK_INTERNAL_ISSUER}/protocol/openid-connect/certs`,
         },
       },
     }),

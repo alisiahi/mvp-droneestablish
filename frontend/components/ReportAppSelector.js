@@ -6,7 +6,7 @@ export default function ReportAppSelector({ betrieb_id, onSelect, onBack, title 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`http://localhost:8000/applications/${betrieb_id}`)
+    fetch(`/api/applications/${betrieb_id}`)
       .then((res) => res.json())
       .then((data) => {
         // Only show submitted main applications
